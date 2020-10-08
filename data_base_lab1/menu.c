@@ -42,7 +42,11 @@ int main()
 		}
 		case 3:
 		{
-
+			system("cls");
+			printf("Enter index\n");
+			int index;
+			scanf_s("%d", &index);
+			del_m(index);
 			break;
 		}
 		case 4:

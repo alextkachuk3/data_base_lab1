@@ -63,7 +63,7 @@ void sort_pass_ind()
             }
         }
     }
-    fseek(PASS_ind, 0L, SEEK_SET);
+    fseek(PASS_ind, 0, SEEK_SET);
     fwrite(pass_ind, sizeof(passenger_ind), count, PASS_ind);
     fclose(PASS_ind);
 }
@@ -91,8 +91,8 @@ void sort_tick_ind()
             }
         }
     }
-    fseek(TICK_ind, 0L, SEEK_SET);
-    fwrite(tick_ind, sizeof(tick_ind), count, TICK_ind);
+    fseek(TICK_ind, 0, SEEK_SET);
+    fwrite(tick_ind, sizeof(ticket_ind), count, TICK_ind);
     fclose(TICK_ind);
 }
 
@@ -166,20 +166,31 @@ void del_s(int index)
 
     FILE* TICK_ind;
     fopen_s(&TICK_ind, Ticket_ind, "r+b");
-    int tick_pos;
 
     ticket_ind tick_ind;
 
+    int tick_pos = -1;
+
+    int ind_pos_ind_del;
+
     for (int i = 0; i < ci.count_ticket; i++)
     {
+        ind_pos_ind_del = ftell(TICK_ind);
         fread(&tick_ind, sizeof(tick_ind), 1, TICK_ind);
         if (tick_ind.ID == index)
         {
+            tick_pos = tick_ind.pos;
             break;
         }
     }
 
-    int tick_ind_pos = ftell(TICK_ind) - sizeof(ticket_ind);
+    if (tick_pos == -1)
+    {
+        printf("Wrong index!\n");
+        return;
+    }
+
+    int del_tick_ind_pos = ftell(TICK_ind) - sizeof(ticket_ind);
    
     FILE* TICK;
     fopen_s(&TICK, Ticket, "r+b");
@@ -193,64 +204,148 @@ void del_s(int index)
     fseek(PASS, pass_pos, SEEK_SET);
     fread(&pass, sizeof(passenger), 1, PASS);
 
-
     char q = '0';
 
-    int is_last_ticket = tick_pos + sizeof(ticket) / sizeof(ticket) == ci.count_ticket;
 
     if (ci.count_ticket == 1)
     {
         fseek(TICK, 0, SEEK_SET);
         fwrite(&q, 1, sizeof(ticket), TICK);
         pass.head_ticket_pos = 0;
-        pass.count_of_tickets = 0;
-        //fwrite(&q, 1, sizeof(ticket_ind), TICK_ind);
-    }
-    else if (pass.head_ticket_pos==tick_pos && !del_tick.next_ticket_pos)
-    {
-        pass.count_of_tickets = 0;
-        pass.head_ticket_pos = 0;
-        if (is_last_ticket)
-        {
-            fseek(TICK, tick_pos - sizeof(ticket), SEEK_SET);
-            fwrite(&q, 1, sizeof(ticket), TICK);
-        }
-        else
-        {
-
-        }
-    }
-    else if (pass.head_ticket_pos == tick_pos && del_tick.next_ticket_pos)
-    {
-
-    }
-    else if(!del_tick.next_ticket_pos)
-    {
-
     }
     else
     {
+        int is_last_ticket_in_file = (tick_pos + sizeof(ticket)) / sizeof(ticket) == ci.count_ticket;
 
+        int is_last_ticket_in_list = (del_tick.next_ticket_pos == 0);
+
+        int is_first_tick_in_list = (pass.head_ticket_pos == tick_pos);
+
+        if (is_last_ticket_in_list && is_first_tick_in_list)
+        {
+            pass.head_ticket_pos = 0;
+        }
+        if (is_last_ticket_in_list && !is_first_tick_in_list)
+        {
+            ticket prev_ticket;
+            fseek(TICK, pass.head_ticket_pos, SEEK_SET);
+            for (int i = 0; i < pass.count_of_tickets; i++)
+            {
+                fread(&prev_ticket, sizeof(ticket), 1, TICK);
+                if (prev_ticket.next_ticket_pos == tick_pos)
+                    break;
+                fseek(TICK, prev_ticket.next_ticket_pos, SEEK_SET);
+            }
+            prev_ticket.next_ticket_pos = 0;
+            fseek(TICK, ftell(TICK)-sizeof(ticket), SEEK_SET);
+            fwrite(&prev_ticket, sizeof(ticket), 1, TICK);
+        }
+        if (!is_last_ticket_in_list && is_first_tick_in_list)
+        {
+            pass.head_ticket_pos = del_tick.next_ticket_pos;
+        }
+        if (!is_last_ticket_in_list && !is_first_tick_in_list)
+        {
+            ticket prev_ticket;
+            fseek(TICK, pass.head_ticket_pos, SEEK_SET);
+            for (int i = 0; i < pass.count_of_tickets - 1; i++)
+            {
+                fread(&prev_ticket, sizeof(ticket), 1, TICK);
+                if (prev_ticket.next_ticket_pos == tick_pos)
+                    break;
+                fseek(TICK, prev_ticket.next_ticket_pos, SEEK_SET);
+            }
+            prev_ticket.next_ticket_pos = del_tick.next_ticket_pos;
+            fseek(TICK, ftell(TICK) - sizeof(ticket), SEEK_SET);
+            fwrite(&prev_ticket, sizeof(ticket), 1, TICK);
+        }
+
+
+
+        if (is_last_ticket_in_file)
+        {
+            fseek(TICK, tick_pos, SEEK_SET);
+            fwrite(&q, 1, sizeof(ticket), TICK);
+        }
+        if (!is_last_ticket_in_file)
+        {
+            fseek(TICK, (ci.count_ticket * sizeof(ticket)) - sizeof(ticket), SEEK_SET);
+            ticket end_tick_for_move;
+            fread(&end_tick_for_move, sizeof(ticket), 1, TICK);
+            fseek(TICK, tick_pos, SEEK_SET);
+            fwrite(&end_tick_for_move, sizeof(ticket), 1, TICK);
+            fseek(TICK, (ci.count_ticket * sizeof(ticket)) - sizeof(ticket), SEEK_SET);
+            fwrite(&q, 1, sizeof(ticket), TICK);
+
+            ticket_ind end_tick_ind;
+            int ind_pos_end_ticket;
+            for (int i = 0; i < ci.count_ticket; i++)
+            {
+                ind_pos_end_ticket = ftell(TICK_ind);
+                fseek(TICK_ind, i * sizeof(ticket_ind), SEEK_SET);
+                fread(&end_tick_ind, sizeof(ticket_ind), 1, TICK_ind);
+                if (end_tick_ind.ID == end_tick_for_move.ID)
+                    break;
+            }
+            int prev_end_pos = end_tick_ind.pos;
+            end_tick_ind.pos = tick_pos;
+            fseek(TICK_ind, ind_pos_end_ticket, SEEK_SET);
+            fwrite(&end_tick_ind, sizeof(ticket_ind), 1, TICK_ind);
+            
+            for (int i = 0; i < ci.count_ticket - 1; i++)
+            {
+                fseek(TICK, i*sizeof(ticket), SEEK_SET);
+                ticket temp;
+                fread(&temp, sizeof(ticket), 1, TICK);
+                if (temp.next_ticket_pos == prev_end_pos)
+                {
+                    temp.next_ticket_pos = tick_pos;
+                    fseek(TICK, i * sizeof(ticket), SEEK_SET);
+                    fwrite(&temp, sizeof(ticket), 1, TICK);
+                }
+            }
+        }
+        
     }
-    
+
+    int is_last_ticket_index = ((del_tick_ind_pos + sizeof(ticket_ind)) / sizeof(ticket_ind) == ci.count_ticket);
+    if (is_last_ticket_index)
+    {
+        fseek(TICK_ind, del_tick_ind_pos, SEEK_SET);
+        fwrite(&q, 1, sizeof(ticket_ind), TICK_ind);
+    }
+    else
+    {
+        ticket_ind end_tick_ind;
+        fseek(TICK_ind, (ci.count_ticket * sizeof(ticket_ind)) - sizeof(ticket_ind), SEEK_SET);
+        fread(&end_tick_ind, sizeof(ticket_ind), 1, TICK_ind);
+        fseek(TICK_ind, (ci.count_ticket * sizeof(ticket_ind)) - sizeof(ticket_ind), SEEK_SET);
+        fwrite(&q, 1, sizeof(ticket_ind), TICK_ind);
+        fseek(TICK_ind, del_tick_ind_pos, SEEK_SET);
+        fwrite(&end_tick_ind, sizeof(ticket_ind), 1, TICK_ind);
+    }
 
     ci.count_ticket--;
+    pass.count_of_tickets--;
+
+    
     fopen_s(&COUNT_FILE, CountInfo, "r+b");
     fseek(PASS, pass_pos, SEEK_SET);
     fwrite(&pass, sizeof(passenger), 1, PASS);
     fseek(COUNT_FILE, 0, SEEK_SET);
     fwrite(&ci, sizeof(count_info), 1, COUNT_FILE);
+
     fclose(PASS);
     fclose(TICK);
-
-
-
     fclose(TICK_ind);
     fclose(COUNT_FILE);
 }
 
 void del_m(int ID)
 {
+    FILE* PASS;
+    FILE* PASS_ind;
+    fopen_s(&PASS_ind, Passenger_ind, "r+b");
     
 }
 
@@ -334,19 +429,22 @@ void insert_s(int ID, int fligt_number, int owner_id)
     fopen_s(&COUNT_FILE, CountInfo, "r+b");
     count_info ci;
     fread(&ci, sizeof(count_info), 1, COUNT_FILE);
-
+    ci.count_ticket++;
+    fseek(COUNT_FILE, 0, SEEK_SET);
+    fwrite(&ci, sizeof(count_info), 1, COUNT_FILE);
+    fclose(COUNT_FILE);
 
     ticket new_tick = { ID, fligt_number, owner_id, 0 };
     FILE* TICK;
     fopen_s(&TICK, Ticket, "r+b");
-    fseek(TICK, ci.count_ticket*sizeof(ticket), SEEK_SET);
+    fseek(TICK, (ci.count_ticket-1)*sizeof(ticket), SEEK_SET);
     int pos_tick = ftell(TICK);
     int size = sizeof(ticket);
     fwrite(&new_tick, sizeof(ticket), 1, TICK);
 
     FILE* TICK_ind;
     fopen_s(&TICK_ind, Ticket_ind, "r+b");
-    fseek(TICK_ind, ci.count_ticket * sizeof(ticket_ind), SEEK_SET);
+    fseek(TICK_ind, (ci.count_ticket - 1 ) * sizeof(ticket_ind), SEEK_SET);
     ticket_ind new_ticket_ind = { ID, pos_tick };
     fwrite(&new_ticket_ind, sizeof(ticket_ind), 1, TICK_ind);
     fclose(TICK_ind);
@@ -388,11 +486,6 @@ void insert_s(int ID, int fligt_number, int owner_id)
     fclose(PASS);
 
     
-    ci.count_ticket++;
-    fseek(COUNT_FILE, 0, SEEK_SET);
-    fwrite(&ci, sizeof(count_info), 1, COUNT_FILE);
-    fclose(COUNT_FILE);
-
     sort_tick_ind();
 }
 
