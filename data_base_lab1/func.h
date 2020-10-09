@@ -355,6 +355,7 @@ void del_s(int index)
     fclose(TICK);
     fclose(TICK_ind);
     fclose(COUNT_FILE);
+    sort_tick_ind();
 }
 
 void del_m(int index)
@@ -458,10 +459,10 @@ void del_m(int index)
     else
     {
         passenger_ind end_pass_ind;
-        fseek(PASS_ind, (ci.count_ticket * sizeof(ticket_ind)) - sizeof(ticket_ind), SEEK_SET);
+        fseek(PASS_ind, (ci.count_passenger * sizeof(ticket_ind)) - sizeof(ticket_ind), SEEK_SET);
         fread(&end_pass_ind, sizeof(passenger_ind), 1, PASS_ind);
         fseek(PASS_ind, (ci.count_passenger * sizeof(passenger_ind)) - sizeof(passenger_ind), SEEK_SET);
-        fwrite(&q, 1, sizeof(ticket_ind), PASS_ind);
+        fwrite(&q, 1, sizeof(passenger_ind), PASS_ind);
         fseek(PASS_ind, del_pass_ind_pos, SEEK_SET);
         fwrite(&end_pass_ind, sizeof(passenger_ind), 1, PASS_ind);
     }
@@ -474,6 +475,7 @@ void del_m(int index)
     fclose(COUNT_FILE);
     fclose(PASS_ind);
     fclose(PASS);
+    sort_pass_ind();
 }
 
 void update_m(int index, int new_country_code)
