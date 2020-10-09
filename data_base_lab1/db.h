@@ -33,6 +33,6 @@ typedef struct
 
 typedef struct
 {
-	int count_passanger;
+	int count_passenger;
 	int count_ticket;
 }count_info;

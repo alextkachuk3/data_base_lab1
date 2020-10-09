@@ -17,7 +17,7 @@ int get_count_of_masters()
     fopen_s(&COUNT_INFO, CountInfo, "rb");
     fread(&ci, sizeof(count_info), 1, COUNT_INFO);
     fclose(COUNT_INFO);
-    return ci.count_passanger;
+    return ci.count_passenger;
 }
 
 int get_count_of_slaves()
@@ -171,11 +171,11 @@ void del_s(int index)
 
     int tick_pos = -1;
 
-    int ind_pos_ind_del;
+    //int ind_pos_ind_del;
 
     for (int i = 0; i < ci.count_ticket; i++)
     {
-        ind_pos_ind_del = ftell(TICK_ind);
+        //ind_pos_ind_del = ftell(TICK_ind);
         fread(&tick_ind, sizeof(tick_ind), 1, TICK_ind);
         if (tick_ind.ID == index)
         {
@@ -186,6 +186,7 @@ void del_s(int index)
 
     if (tick_pos == -1)
     {
+        fclose(TICK_ind);
         printf("Wrong index!\n");
         return;
     }
@@ -217,7 +218,7 @@ void del_s(int index)
     {
         int is_last_ticket_in_file = (tick_pos + sizeof(ticket)) / sizeof(ticket) == ci.count_ticket;
 
-        int is_last_ticket_in_list = (del_tick.next_ticket_pos == 0);
+        int is_last_ticket_in_list = (del_tick.next_ticket_pos == -1);
 
         int is_first_tick_in_list = (pass.head_ticket_pos == tick_pos);
 
@@ -236,7 +237,7 @@ void del_s(int index)
                     break;
                 fseek(TICK, prev_ticket.next_ticket_pos, SEEK_SET);
             }
-            prev_ticket.next_ticket_pos = 0;
+            prev_ticket.next_ticket_pos = -1;
             fseek(TICK, ftell(TICK)-sizeof(ticket), SEEK_SET);
             fwrite(&prev_ticket, sizeof(ticket), 1, TICK);
         }
@@ -267,12 +268,16 @@ void del_s(int index)
             fseek(TICK, tick_pos, SEEK_SET);
             fwrite(&q, 1, sizeof(ticket), TICK);
         }
-        if (!is_last_ticket_in_file)
+        else
         {
             fseek(TICK, (ci.count_ticket * sizeof(ticket)) - sizeof(ticket), SEEK_SET);
             ticket end_tick_for_move;
             fread(&end_tick_for_move, sizeof(ticket), 1, TICK);
             fseek(TICK, tick_pos, SEEK_SET);
+
+            /*
+            if (is_last_ticket_in_list && is_first_tick_in_list)
+                end_tick_for_move.next_ticket_pos -= sizeof(ticket);*/
             fwrite(&end_tick_for_move, sizeof(ticket), 1, TICK);
             fseek(TICK, (ci.count_ticket * sizeof(ticket)) - sizeof(ticket), SEEK_SET);
             fwrite(&q, 1, sizeof(ticket), TICK);
@@ -341,12 +346,123 @@ void del_s(int index)
     fclose(COUNT_FILE);
 }
 
-void del_m(int ID)
+void del_m(int index)
 {
+    FILE* COUNT_FILE;
+    fopen_s(&COUNT_FILE, CountInfo, "r+b");
+    count_info ci;
+    fread(&ci, sizeof(count_info), 1, COUNT_FILE);
+    fclose(COUNT_FILE);
     FILE* PASS;
     FILE* PASS_ind;
     fopen_s(&PASS_ind, Passenger_ind, "r+b");
-    
+
+    passenger_ind pass_ind;
+
+    int pass_pos = -1;
+
+    int ind_pos_ind_del;
+
+    for (int i = 0; i < ci.count_ticket; i++)
+    {
+        ind_pos_ind_del = ftell(PASS_ind);
+        fread(&pass_ind, sizeof(passenger_ind), 1, PASS_ind);
+        if (pass_ind.ID == index)
+        {
+            pass_pos = pass_ind.pos;
+            break;
+        }
+    }
+
+    if (pass_pos == -1)
+    {
+        fclose(PASS_ind);
+        printf("Wrong index!\n");
+        return;
+    }
+
+    int del_pass_ind_pos = ftell(PASS_ind) - sizeof(passenger_ind);
+
+    fclose(PASS_ind);
+
+    passenger del_pass = get_m(index);
+
+    while (del_pass.count_of_tickets)
+    {
+        FILE* TICK;
+        fopen_s(&TICK, Ticket, "r+b");
+        fseek(TICK, del_pass.head_ticket_pos, SEEK_SET);
+        int s_ind;
+        fread(&s_ind, sizeof(int), 1, TICK);
+        fclose(TICK);
+        del_s(s_ind);
+        del_pass = get_m(index);
+    }
+
+    int is_last_passenger_in_file = (pass_pos + sizeof(passenger)) / sizeof(passenger) == ci.count_passenger;
+
+    char q = '\0';
+
+    fopen_s(&PASS, Passenger, "r+b");
+
+    if (is_last_passenger_in_file)
+    {
+        fseek(PASS, pass_pos, SEEK_SET);
+        fwrite(&q, 1, sizeof(ticket), PASS);
+    }
+    else
+    {
+        fseek(PASS, (ci.count_passenger * sizeof(passenger)) - sizeof(passenger), SEEK_SET);
+        passenger end_pass_for_move;
+        fread(&end_pass_for_move, sizeof(passenger), 1, PASS);
+        fseek(PASS, pass_pos, SEEK_SET);
+        fwrite(&end_pass_for_move, sizeof(passenger), 1, PASS);
+        fseek(PASS, (ci.count_passenger * sizeof(passenger)) - sizeof(passenger), SEEK_SET);
+        fwrite(&q, 1, sizeof(passenger), PASS);
+
+        passenger_ind end_pass_ind;
+        int ind_pos_end_pass;
+        for (int i = 0; i < ci.count_passenger; i++)
+        {
+            ind_pos_end_pass = ftell(PASS_ind);
+            fseek(PASS_ind, i * sizeof(passenger_ind), SEEK_SET);
+            fread(&end_pass_ind, sizeof(passenger_ind), 1, PASS_ind);
+            if (end_pass_ind.ID == end_pass_for_move.ID)
+                break;
+        }
+        int prev_end_pos = end_pass_ind.pos;
+        end_pass_ind.pos = pass_pos;
+        fseek(PASS_ind, ind_pos_end_pass, SEEK_SET);
+        fwrite(&end_pass_ind, sizeof(ticket_ind), 1, PASS_ind);
+    }
+
+    fopen_s(&PASS_ind, Passenger_ind, "r+b");
+
+    int is_last_ticket_index = ((del_pass_ind_pos + sizeof(passenger_ind)) / sizeof(ticket_ind) == ci.count_passenger);
+    if (is_last_ticket_index)
+    {
+        fseek(PASS_ind, del_pass_ind_pos, SEEK_SET);
+        fwrite(&q, 1, sizeof(ticket_ind), PASS_ind);
+    }
+    else
+    {
+        passenger_ind end_pass_ind;
+        fseek(PASS_ind, (ci.count_ticket * sizeof(ticket_ind)) - sizeof(ticket_ind), SEEK_SET);
+        fread(&end_pass_ind, sizeof(passenger_ind), 1, PASS_ind);
+        fseek(PASS_ind, (ci.count_passenger * sizeof(passenger_ind)) - sizeof(passenger_ind), SEEK_SET);
+        fwrite(&q, 1, sizeof(ticket_ind), PASS_ind);
+        fseek(PASS_ind, del_pass_ind_pos, SEEK_SET);
+        fwrite(&end_pass_ind, sizeof(passenger_ind), 1, PASS_ind);
+    }
+
+    fopen_s(&COUNT_FILE, CountInfo, "r+b");
+    fread(&ci, sizeof(count_info), 1, COUNT_FILE);
+    ci.count_passenger--;
+    fseek(COUNT_FILE, 0, SEEK_SET);
+    fwrite(&ci, sizeof(count_info), 1, COUNT_FILE);
+    fclose(COUNT_FILE);
+    fclose(PASS_ind);
+    fclose(PASS);
 }
 
 void update_m(int index, int new_country_code)
@@ -393,7 +509,7 @@ void insert_m(int ID, int country_code, char name[name_lenght])
     new_passenger.head_ticket_pos = 0;
     FILE* PASS;
     fopen_s(&PASS, Passenger, "r+b");
-    fseek(PASS, ci.count_passanger*sizeof(passenger), SEEK_SET);
+    fseek(PASS, ci.count_passenger*sizeof(passenger), SEEK_SET);
     int pos = ftell(PASS);
     fwrite(&new_passenger, sizeof(passenger), 1, PASS);
     fclose(PASS);
@@ -401,12 +517,12 @@ void insert_m(int ID, int country_code, char name[name_lenght])
     passenger_ind new_passenger_ind = { ID, pos };
     FILE* PASS_IND;
     fopen_s(&PASS_IND, Passenger_ind, "r+b");
-    fseek(PASS_IND, ci.count_passanger * sizeof(passenger_ind), SEEK_SET);
+    fseek(PASS_IND, ci.count_passenger * sizeof(passenger_ind), SEEK_SET);
     fwrite(&new_passenger_ind, sizeof(passenger_ind), 1, PASS_IND);
     fclose(PASS_IND);
 
 
-    ci.count_passanger++;
+    ci.count_passenger++;
     fseek(COUNT_FILE, 0, SEEK_SET);
     fwrite(&ci, sizeof(count_info), 1, COUNT_FILE);
     fclose(COUNT_FILE);
@@ -434,7 +550,7 @@ void insert_s(int ID, int fligt_number, int owner_id)
     fwrite(&ci, sizeof(count_info), 1, COUNT_FILE);
     fclose(COUNT_FILE);
 
-    ticket new_tick = { ID, fligt_number, owner_id, 0 };
+    ticket new_tick = { ID, fligt_number, owner_id, -1 };
     FILE* TICK;
     fopen_s(&TICK, Ticket, "r+b");
     fseek(TICK, (ci.count_ticket-1)*sizeof(ticket), SEEK_SET);
@@ -503,7 +619,7 @@ void ut_m()
     FILE* PASS;
     fopen_s(&PASS, Passenger, "rb");
     passenger pass;
-    for (int i = 0; i < ci.count_passanger; i++)
+    for (int i = 0; i < ci.count_passenger; i++)
     {
         fread(&pass, sizeof(passenger), 1, PASS);
         printf("%-5d %-5d %10s %-5d %-5d \n", pass.ID, pass.country_code, pass.name, pass.count_of_tickets, pass.head_ticket_pos);
@@ -514,7 +630,7 @@ void ut_m()
     FILE* PASS_ind;
     fopen_s(&PASS_ind, Passenger_ind, "rb");
     passenger_ind pass_ind;
-    for (int i = 0; i < ci.count_passanger; i++)
+    for (int i = 0; i < ci.count_passenger; i++)
     {
         fread(&pass_ind, sizeof(passenger_ind), 1, PASS_ind);
         printf("%-5d %-5d\n", pass_ind.ID, pass_ind.pos);
