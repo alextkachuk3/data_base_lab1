@@ -309,6 +309,17 @@ void del_s(int index)
                     fwrite(&temp, sizeof(ticket), 1, TICK);
                 }
             }
+            
+            int pass_pos_of_end_ticket = get_m_pos(end_tick_for_move.ID_owner);
+            fseek(PASS, pass_pos_of_end_ticket, SEEK_SET);
+            passenger pass_of_end_ticket;
+            fread(&pass_of_end_ticket, sizeof(passenger), 1, PASS);
+            if (pass_of_end_ticket.head_ticket_pos == prev_end_pos)
+            {
+                pass_of_end_ticket.head_ticket_pos = tick_pos;
+                fseek(PASS, pass_pos_of_end_ticket, SEEK_SET);
+                fwrite(&pass_of_end_ticket, sizeof(passenger), 1, PASS);
+            }
         }
         
     }

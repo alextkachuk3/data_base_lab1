@@ -61,17 +61,24 @@ int main()
 		case 5:
 		{
 			system("cls");
+			int num, new_country_code;
+			printf_s("Enter index:");
+			scanf_s("%d", &num);
+			printf_s("Enter new country code:");
+			scanf_s("%d", &new_country_code);
+			update_m(num, new_country_code);
+			break;
+		}
+		case 6:
+		{
+			system("cls");
 			int num, new_fl_num;
 			printf_s("Enter index:");
 			scanf_s("%d", &num);
 			printf_s("Enter new flight number:");
 			scanf_s("%d", &new_fl_num);
-			update_m(num, new_fl_num);
+			update_s(num, new_fl_num);
 			break;
-		}
-		case 6:
-		{
-
 			break;
 		}
 		case 7:
